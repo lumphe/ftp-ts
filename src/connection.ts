@@ -1534,7 +1534,7 @@ export class FTP extends EventEmitter {
                         await getLast(this._send("MODE S", true));
                     }
                 } else {
-                    return sendStore(sock);
+                    return sendStore(sock).then(() => sock.end());
                 }
             } catch (e) {
                 throw e || sockerr;
