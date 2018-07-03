@@ -1502,12 +1502,14 @@ export class FTP extends EventEmitter {
                     if (code === 150 || code === 125) {
                         if (Buffer.isBuffer(input)) {
                             dest.write(input);
+                            dest.end();
                         } else if (typeof input === "string") {
                             // check if input is a file path or just string data to store
                             await import("fs").then((fs) => {
                                 fs.stat(input, (err3, stats) => {
                                     if (err3) {
-                                        dest.write(input);
+                                        // dest.write(input);
+                                        dest.end();
                                     } else {
                                         fs.createReadStream(input).pipe(dest);
                                     }
@@ -1534,7 +1536,7 @@ export class FTP extends EventEmitter {
                         await getLast(this._send("MODE S", true));
                     }
                 } else {
-                    return sendStore(sock).then(() => sock.end());
+                    return sendStore(sock);
                 }
             } catch (e) {
                 throw e || sockerr;

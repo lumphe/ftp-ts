@@ -48,7 +48,7 @@ async function main() {
     console.log("Initializing FTP server");
     const server = new FtpServer("ftp://127.0.0.1:2111", { 
         // pasv_range: 2112,
-        blacklist: ["PASV"],
+        // blacklist: ["PASV"],
         greeting: "Welcome to Marathon Communication FTP",
         log: new LoggerThing({ name: "ftp-server" })
     });
@@ -67,9 +67,9 @@ async function main() {
     // this.ftpServer.initialize(!this.conf.ftpInsecure, this.conf.ftpHost || "0.0.0.0", this.conf.ftpPort || 2111);
     const c = await Client.connect({host: "127.0.0.1", port: 2111, portAddress: "127.0.0.1", portRange: "6000-7000", debug: (s) => {
         console.warn(s)
-    }, secure: true, secureOptions: {
+    }/*, secure: true, secureOptions: {
         secureProtocol: "TLSv1_2_method"
-    }});
+    }*/});
 
     c.on('ready', () => {
         console.log("Client ready");
@@ -90,14 +90,16 @@ async function main() {
     const res = await c.list();
     console.log("--------------------------------------------------------------");
     console.dir(res);
-    /*const res2 = await c.list();
+    const res2 = await c.list();
     console.log("--------------------------------------------------------------");
     console.dir(res2);
     console.log("--------------------------------------------------------------");
     console.dir(await Promise.all([
         c.list(),
         c.list(),
-    ]));*/
+    ]));
+    c.put(Buffer.from("123"),"test_file.txt");
+    console.dir(await c.list());
     c.end();
     server.close();
 }
