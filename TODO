@@ -1,0 +1,2 @@
+ - Add support for some SITE commands such as CHMOD, CHGRP, and QUOTA
+ - IPv6 support

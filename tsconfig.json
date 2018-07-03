@@ -1,0 +1,33 @@
+{
+    "compilerOptions": {
+        "jsx": "react",
+        "target": "ES2017",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "importHelpers": true,
+        "allowSyntheticDefaultImports": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "removeComments": false,
+        "noImplicitAny": true,
+        "noEmitOnError": true,
+        "rootDir": "src",
+        "outDir": "esm",
+        "declaration": true,
+        "strict": true,
+        "lib": [
+            "es2017",
+            "esnext.asynciterable"
+        ]
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "esm",
+        "test"
+    ]
+}

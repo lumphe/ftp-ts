@@ -1,0 +1,48 @@
+{
+    "name": "ftp-ts",
+    "version": "1.0.0",
+    "author": "Alexander Lumphé <alu@kase.se>",
+    "contributors": [
+        "Brian White <mscdex@mscdex.net>"
+    ],
+    "description": "An FTP client module written in typescript",
+    "main": "./dist/connection",
+    "module": "./esm/connection.js",
+    "types": "./esm/connection.d.ts",
+    "engines": {
+        "node": ">=8.0.0"
+    },
+    "bugs": {
+        "url": "http://github.com/lumphe/node-ftp/issues"
+    },
+    "scripts": {
+        "test": "node test/test.js",
+        "build": "npm run build:tslint && npm run build:esm && npm run build-rollup",
+        "build:tslint": "tslint -p tsconfig.json",
+        "build:esm": "tsc -p tsconfig.json --noImplicitAny || tsc -p tsconfig.json",
+        "build-rollup": "rm -rf dist/* && rollup -c"
+    },
+    "keywords": [
+        "ftp",
+        "client",
+        "transfer"
+    ],
+    "licenses": [
+        {
+            "type": "MIT",
+            "url": "http://github.com/lumphe/node-ftp/raw/master/LICENSE"
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "http://github.com/lumphe/node-ftp.git"
+    },
+    "devDependencies": {
+        "@types/node": ">=8.0.0",
+        "ftp-srv": "^2.19.2",
+        "rollup-plugin-commonjs": "^9.1.3",
+        "rollup-plugin-node-resolve": "^3.3.0",
+        "rollup-plugin-uglify": "^3.0.0",
+        "tslib": "^1.9.0"
+    }
+}
