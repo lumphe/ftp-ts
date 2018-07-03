@@ -1,8 +1,9 @@
 {
     "name": "ftp-ts",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "Alexander Lumphé <alu@kase.se>",
     "contributors": [
+        "Tim Lundqvist <timluq+public@gmail.com>",
         "Brian White <mscdex@mscdex.net>"
     ],
     "description": "An FTP client module written in typescript",
@@ -13,7 +14,7 @@
         "node": ">=8.0.0"
     },
     "bugs": {
-        "url": "http://github.com/lumphe/node-ftp/issues"
+        "url": "http://github.com/lumphe/ftp-ts/issues"
     },
     "scripts": {
         "test": "node test/test.js",
@@ -30,12 +31,12 @@
     "licenses": [
         {
             "type": "MIT",
-            "url": "http://github.com/lumphe/node-ftp/raw/master/LICENSE"
+            "url": "http://github.com/lumphe/ftp-ts/raw/master/LICENSE"
         }
     ],
     "repository": {
         "type": "git",
-        "url": "http://github.com/lumphe/node-ftp.git"
+        "url": "http://github.com/lumphe/ftp-ts.git"
     },
     "devDependencies": {
         "@types/node": ">=8.0.0",
