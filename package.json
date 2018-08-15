@@ -18,7 +18,7 @@
     },
     "scripts": {
         "test": "node test/test.js",
-        "build": "npm run build:tslint && npm run build:esm && npm run build-rollup",
+        "build": "npm run build:tslint && npm run build:esm && npm run build-rollup && chmod +x dist/bin.js",
         "build:tslint": "tslint -p tsconfig.json",
         "build:esm": "tsc -p tsconfig.json --noImplicitAny || tsc -p tsconfig.json",
         "build-rollup": "rm -rf dist/* && rollup -c"
@@ -45,5 +45,6 @@
         "rollup-plugin-node-resolve": "^3.3.0",
         "rollup-plugin-uglify": "^3.0.0",
         "tslib": "^1.9.0"
-    }
+    },
+    "bin": "dist/bin.js"
 }
