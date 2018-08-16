@@ -7,12 +7,14 @@ const args = process.argv.slice(2);
 
 const url = new URL(args[0]);
 const opt = {
-    host: url.host,
+    host: url.hostname,
     password: url.password,
     port: url.port ? parseInt(url.port, 10) : undefined,
-    secure: url.protocol === "ftps",
+    secure: url.protocol === "ftps:",
     user: url.username,
 };
+// console.warn(opt);
+// console.warn(url);
 // TODO: read user and pass if none exists
 const knownCmd = ["list", "get", "put"];
 Client.connect(opt).then((c) => {
@@ -20,7 +22,7 @@ Client.connect(opt).then((c) => {
         const hits = knownCmd.filter((cmd) => cmd.startsWith(line));
         cb(null, [hits.length ? hits : knownCmd, line]);
     };
-
+    // console.warn((c as any)._socket);
     const r1 = createInterface({
         completer,
         input: process.stdin,
