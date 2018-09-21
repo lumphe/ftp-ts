@@ -162,7 +162,7 @@ export class FTP extends EventEmitter {
     private _pasvSock?: net.Socket;
     private _pasvSocket?: net.Socket;
     private _pasvReady: Promise<void> = Promise.resolve();
-    // private _feat?: string[];
+    private _feat?: string[];
     private _curReq?: ICurReq;
     private _queue: ICurReq[] = [];
     private _secstate?: string; // upgraded-tls
@@ -171,6 +171,10 @@ export class FTP extends EventEmitter {
     private _ending: boolean = false;
     private _parser?: Parser;
     private _usePort: boolean = false;
+
+    public get feat() {
+        return this._feat;
+    }
 
     public connect(options: Partial<IOptions> = {}): Promise<this> {
 
@@ -337,11 +341,19 @@ export class FTP extends EventEmitter {
                         }
                     } else if (cmd === "PASS") {
                         cmd = "FEAT";
-                        return getLast(this._send(cmd, true)).then(reentry);
+                        return getLast(this._send(cmd, true)).then((a) => {
+                            if (a[1]) {
+                                this._feat = Parser.parseFeat(a[1] as string);
+                            }
+                            return a;
+                        }, (e) => {
+                            if (e.code !== 500) {
+                                throw e;
+                            }
+                            // FEAT Not supported
+                            return [e.code, e.message] as [number, string];
+                        }).then(reentry);
                     } else if (cmd === "FEAT") {
-                        /* if (!err) {
-                            this._feat = Parser.parseFeat(text);
-                        }*/
                         cmd = "TYPE";
                         return getLast(this._send("TYPE I", true)).then(reentry);
                     } else if (cmd === "TYPE") {
@@ -1620,7 +1632,7 @@ export class FTP extends EventEmitter {
         }
         this._socket = undefined;
         this._pasvSock = undefined;
-        // this._feat = undefined;
+        this._feat = undefined;
         this._curReq = undefined;
         this._secstate = undefined;
         if (this._keepalive) {
