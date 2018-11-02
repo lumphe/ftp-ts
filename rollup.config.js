@@ -1,6 +1,7 @@
 import resolve from 'rollup-plugin-node-resolve';
 import uglify from 'rollup-plugin-uglify';
 import commonjs from 'rollup-plugin-commonjs';
+import sourcemaps from 'rollup-plugin-sourcemaps';
 
 export default [{
     experimentalCodeSplitting: true,
@@ -64,6 +65,7 @@ export default [{
         "url",
     ],
     plugins: [
+        sourcemaps(),
         resolve(),
         uglify(),
         commonjs()

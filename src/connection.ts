@@ -393,13 +393,20 @@ export class FTP extends EventEmitter {
                     }
                 };
 
+                const catchOnLoginError = (e: Error) => {
+                    if (socket.destroyed) {
+                        socket.end();
+                    }
+                    throw e;
+                };
+
                 if (this._secstate) {
                     if (this._secstate === "upgraded-tls" && this.options.secure === true) {
                         cmd = "PBSZ";
-                        return getLast(this._send("PBSZ 0", true)).then(reentry);
+                        return getLast(this._send("PBSZ 0", true)).then(reentry).catch(catchOnLoginError);
                     } else {
                         cmd = "USER";
-                        return getLast(this._send("USER " + this.options.user, true)).then(reentry);
+                        return getLast(this._send("USER " + this.options.user, true)).then(reentry).catch(catchOnLoginError);
                     }
                 } else {
                     let inRes: null | ((th: Promise<this> | this) => void) = null;
@@ -434,7 +441,7 @@ export class FTP extends EventEmitter {
                         },
                         cmd: "",
                     };
-                    return prom;
+                    return prom.catch(catchOnLoginError);
                 }
             };
 
@@ -459,10 +466,14 @@ export class FTP extends EventEmitter {
                     clearTimeout(this._keepalive);
                     this._keepalive = undefined;
                 }
-                this.emit("error", err);
                 if (doSignal) {
                     rej(err);
                     doSignal = false;
+                    if (this._socket && !this._socket.destroyed) {
+                        this._socket.end();
+                    }
+                } else if (this.listenerCount("error")) {
+                    this.emit("error", err);
                 }
             };
             socket.on("error", onerror);
@@ -508,7 +519,11 @@ export class FTP extends EventEmitter {
                 }
             }, this.options.connTimeout);
 
-            this._socket.connect(this.options.port, this.options.host);
+            try {
+                this._socket.connect(this.options.port, this.options.host);
+            } catch (e) {
+                rej(e);
+            }
         });
     }
 

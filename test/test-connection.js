@@ -50,10 +50,16 @@ async function main() {
         // pasv_range: 2112,
         // blacklist: ["PASV"],
         greeting: "Welcome to Marathon Communication FTP",
-        log: new LoggerThing({ name: "ftp-server" })
+        log: new LoggerThing({ name: "ftp-server" }),
+        
     });
     server.on("error" , (e) => console.error("FtpServer error: ", e));
-    server.on("login", (data, s, r) => Promise.resolve({}).then(s, r));
+    server.on("login", (d, s, r) => (async (data) => {
+        if (data.username !== "invalid" && data.password !== "invalid") {
+            return {};
+        }
+        throw new Error("User was invalid");
+    })(d).then(s, r));
     server.on("client-error", (d) => {
         console.warn("FTP client error (%s):", d.context, d.error);
     });
@@ -62,6 +68,37 @@ async function main() {
         console.log("FTP Server initialized");
     }, (e) => {
         console.error("FTP server failed to initialize:", e);
+    });
+    
+    await Client.connect({host: "bla bla bla", port: 2111, portAddress: "127.0.0.1", portRange: "6000-7000", debug: (s) => {
+        console.warn(s)
+    }}).then((c) => {
+        c.end();
+        console.error("Successfully connected to 'bla bla bla', this should not happen.");
+        process.exitCode = 4;
+    }, (e) => {
+        if (e.code === "ENOTFOUND") {
+            console.log("Success in ENOTFOUND test.");
+            return;
+        }
+        console.error("Unexpected error while connecting to 'bla bla bla':", e);
+        process.exitCode = 4;
+    });  
+
+    await Client.connect({host: "127.0.0.1", port: 2111, portAddress: "127.0.0.1", portRange: "6000-7000", user: "invalid", password: "invalid", debug: (s) => {
+        console.warn(s)
+    }}).then((c) => {
+        c.end();
+        console.error("Successfully connected to 127.0.0.1 with user invalid and passoword invalid, this should not happen.");
+        process.exitCode = 4;
+    }, (e) => {
+        if (e.code === 530) {
+            console.log("Success in Invalid user test.");
+            return;
+        }
+        console.error("Unexpected error while connecting to '127.0.0.1':", e);
+        process.exitCode = 4;
+
     });
 
     // this.ftpServer.initialize(!this.conf.ftpInsecure, this.conf.ftpHost || "0.0.0.0", this.conf.ftpPort || 2111);

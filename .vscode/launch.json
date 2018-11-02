@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/test/test.js",
             // "preLaunchTask": "npm: build",
             "outFiles": [
-                "${workspaceFolder}/esm/**/*.js"
+                "${workspaceFolder}/dist/**/*.js"
             ]
         }
     ]
