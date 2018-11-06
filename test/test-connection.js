@@ -1,5 +1,8 @@
+require("source-map-support/register");
 const Client = require('..').default;
 const FtpServer = require('ftp-srv').FtpSrv;
+const createWriteStream = require('fs').createWriteStream;
+const statSync = require('fs').statSync;
 
 class LoggerThing {
 
@@ -42,6 +45,28 @@ class LoggerThing {
     fatal(...args) {
         console.error("[%s FATL]:", this.me, ...args);
     }
+}
+/**
+ * 
+ * @param {NodeJS.ReadableStream} input 
+ * @param {NodeJS.WritableStream} output 
+ */
+function pipeall(input, output) {
+    return new Promise((res, rej) => {
+        output.once("error", (e) => {
+            console.warn("PipeAll.output: error event ", e);
+            rej(e);
+        });
+        input.once("error", (e) => {
+            console.warn("PipeAll.input: error event ", e);
+            rej(e);
+        });
+        output.once("close", () => {
+            console.log("PipeAll.output: close event ");
+            res();
+        });
+        input.pipe(output);
+    });
 }
 
 async function main() {
@@ -138,6 +163,28 @@ async function main() {
     c.put(Buffer.from("123"),"test_file.txt");
     console.dir(await c.list());
     c.end();
+
+
+    console.log("----------------------------------------------------------------------------------------------------------------------------");
+
+    await Client.connect({host: "127.0.0.1", port: 2111, portAddress: "127.0.0.1", portRange: "6000-7000", debug: (s) => {
+        console.warn(s)
+    }}).then(async (c) => {
+        const stream = await c.get("LICENSE");
+        const writeStream = createWriteStream('test_LICENSE.txt');
+        console.log("---------------- Bytes Readpre: ", stream.bytesRead);
+        await pipeall(stream, writeStream);
+        console.log("---------------- Bytes Readpost: ", stream.bytesRead);
+        writeStream.end();
+        console.log("---------------- bytesWritten: ", writeStream.bytesWritten);
+        c.end();
+        const org = statSync("LICENSE");
+        const tst = statSync("test_LICENSE.txt");
+        if(org.size !== tst.size) {
+            throw new Error("Retrieved file are not the same.");
+        }
+    });
+
     server.close();
 }
 

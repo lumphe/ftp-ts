@@ -31,6 +31,7 @@ export default [{
         "string_decoder",
     ],
     plugins: [
+        sourcemaps(),
         resolve(),
         uglify(),
         commonjs()

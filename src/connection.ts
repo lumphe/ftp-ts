@@ -835,7 +835,6 @@ export class FTP extends EventEmitter {
             // the socket is closed (e.g. the server ran out of space).
             let sockerr: Error;
             let started = false;
-            let lastreply = false;
             let done = false;
             let source: net.Socket | zlib.Inflate = sock;
 
@@ -850,7 +849,8 @@ export class FTP extends EventEmitter {
                         }
                         return true;
                     }
-                    _emit2.apply(sock, Array.prototype.slice.call(arguments));
+                    arg1.unshift(ev);
+                    _emit2.apply(sock, arg1);
                     return true;
                 };
             }
@@ -892,7 +892,8 @@ export class FTP extends EventEmitter {
                     }
                     return true;
                 }
-                _emit.apply(source, Array.prototype.slice.call(arguments));
+                arg1.unshift(ev);
+                _emit.apply(source, arg1);
                 return true;
             };
 
@@ -914,8 +915,6 @@ export class FTP extends EventEmitter {
                             if (code === 150 || code === 125) {
                                 started = true;
                                 return send;
-                            } else {
-                                lastreply = true;
                             }
                         } while (true);
 
@@ -949,12 +948,12 @@ export class FTP extends EventEmitter {
                 } finally {
                     await getLast(this._send("MODE S", true));
                     const f = () => {
-                        if (done && lastreply) {
-                            _emit("end");
-                            _emit("close");
+                        if (done) {
+                            _emit.call(source, "end");
+                            _emit.call(source, "close");
                         } else if (started) {
-                            _emit("error", sockerr);
-                            _emit("close", true);
+                            _emit.call(source, "error", sockerr);
+                            _emit.call(source, "close", true);
                         }
                     };
                     prom.then(f, f);
@@ -966,11 +965,11 @@ export class FTP extends EventEmitter {
                         await this._send("MODE S", true);
                         const f = () => {
                             if (done && lastreply) {
-                                _emit("end");
-                                _emit("close");
+                                _emit.call(source, "end");
+                                _emit.call(source, "close");
                             } else if (started) {
-                                _emit("error", sockerr);
-                                _emit("close", true);
+                                _emit.call(source, "error", sockerr);
+                                _emit.call(source, "close", true);
                             }
                         };
                         prom.then(f, f);
@@ -981,12 +980,12 @@ export class FTP extends EventEmitter {
                     return await sendRetr();
                 } finally {
                     const f = () => {
-                        if (done && lastreply) {
-                            _emit("end");
-                            _emit("close");
+                        if (done) {
+                            _emit.call(source, "end");
+                            _emit.call(source, "close");
                         } else if (started) {
-                            _emit("error", sockerr);
-                            _emit("close", true);
+                            _emit.call(source, "error", sockerr);
+                            _emit.call(source, "close", true);
                         }
                     };
                     prom.then(f, f);

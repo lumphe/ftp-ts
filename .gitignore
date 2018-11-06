@@ -72,5 +72,6 @@ yarn.lock
 
 /esm
 /dist
+/test_*
 
 /.vstags
