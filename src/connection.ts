@@ -718,8 +718,10 @@ export class FTP extends EventEmitter {
                 // this callback will be executed multiple times, the first is when server
                 // replies with 150 and then a final reply to indicate whether the
                 // transfer was actually a success or not
+                const codes = [];
                 for await (const [code] of this._send(cmd, true)) {
                     // some servers may not open a data connection for empty directories
+                    codes.push(code);
                     if (++replies === 1 && code === 226) {
                         replies = 2;
                     }
@@ -727,7 +729,7 @@ export class FTP extends EventEmitter {
                 if (replies === 2) {
                     return final();
                 }
-                throw new Error("Expected 2 replies for list, count: " + replies);
+                throw new Error("Expected 2 replies for list, count: " + replies + ", codes: " + codes.join(", "));
                 /*return this._send(cmd, true).then(([code]) => {
                     // some servers may not open a data connection for empty directories
                     if (++replies === 1 && code === 226) {
