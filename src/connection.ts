@@ -50,7 +50,7 @@ export interface IOptions {
 
     aliveTimeout: number;
 
-    debug?: string;
+    debug?: (arg: string) => any;
 
     portAddress?: string;
 
