@@ -900,6 +900,9 @@ export class FTP extends EventEmitter {
                     return true;
                 }
                 arg1.unshift(ev);
+                if (this._debug) {
+                    this._debug("Get source emit: " + JSON.stringify(arg1));
+                }
                 _emit.apply(source, arg1);
                 return true;
             };
