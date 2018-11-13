@@ -305,14 +305,14 @@ function regListMsDos(text: string): IListMsDos | null {
     // "^(?<month>\\d{2})(?:\\-|\\/)(?<date>\\d{2})(?:\\-|\\/)(?<year>\\d{2,4})\\s+(?<hour>\\d{2}):(?<minute>\\d{2})\\s{0,1}(?<ampm>[AaMmPp]{1,2})\\s+(?:(?<size>\\d+)|(?<isdir>\\<DIR\\>))\\s+(?<name>.+)$"
     const temp = text.match(REX_LISTMSDOS);
     return temp === null ? null : {
-        ampm: temp[1],
-        date: temp[1],
-        hour: temp[1],
-        isdir: temp[1],
-        minute: temp[1],
+        ampm: temp[6],
+        date: temp[2],
+        hour: temp[4],
+        isdir: temp[8],
+        minute: temp[5],
         month: temp[1],
-        name: temp[1],
-        size: temp[1],
-        year: temp[1],
+        name: temp[9],
+        size: temp[7],
+        year: temp[3],
     };
 }
