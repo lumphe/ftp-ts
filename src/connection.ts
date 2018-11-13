@@ -769,12 +769,17 @@ export class FTP extends EventEmitter {
 
                     // process received data
                     const entries = buffer.split(RE_EOL);
+                    if (this._debug) {
+                        this._debug("Listing entries: " + JSON.stringify(entries));
+                    }
                     entries.pop(); // ending EOL
                     const parsed: Array<IListingElement | string> = [];
                     for (let i = 0, len = entries.length; i < len; ++i) {
                         const parsedVal = Parser.parseListEntry(entries[i]);
                         if (parsedVal !== null) {
                             parsed.push(parsedVal);
+                        } else if (this._debug) {
+                            this._debug("Skipped entry listing: " + JSON.stringify(entries[i]));
                         }
                     }
 
