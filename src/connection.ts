@@ -919,6 +919,9 @@ export class FTP extends EventEmitter {
                                 throw new Error("Expexted result RETR");
                             }
                             const [code] = result.value;
+                            if (this._debug) {
+                                this._debug("Get code: " + code);
+                            }
                             if (code === 150 || code === 125) {
                                 started = true;
                                 return send;
