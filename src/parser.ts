@@ -200,7 +200,7 @@ export default class Parser extends WritableStream {
         this._debug = options.debug;
     }
 
-    public _write(chunk: Buffer, encoding: string, cb: () => void) {
+    public async _write(chunk: Buffer, encoding: string, cb: () => void) {
         const debug = this._debug;
         if (debug) {
             debug("[parser] write()");
@@ -240,7 +240,7 @@ export default class Parser extends WritableStream {
             if (debug) {
                 debug("[parser] Response: code=" + code + ", buffer=" + text);
             }
-            this.emit("response", code, text);
+            await this.emit("response", code, text);
         }
 
         cb();

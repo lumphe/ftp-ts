@@ -1281,7 +1281,7 @@ export class FTP extends EventEmitter {
         let ip: string;
         let port: number;
 
-        const reentry = async ([_, text]: [number, string | undefined]): Promise<net.Socket> => {
+        const pasvReentry = async ([_, text]: [number, string | undefined]): Promise<net.Socket> => {
             this._curReq = undefined;
 
             if (first) {
@@ -1305,7 +1305,7 @@ export class FTP extends EventEmitter {
                 // the Internet
                 if (this._socket && ip !== this._socket.remoteAddress) {
                     ip = this._socket.remoteAddress as string;
-                    return reentry([0, ""]);
+                    return pasvReentry([0, ""]);
                 }
 
                 // automatically abort PASV mode
@@ -1337,7 +1337,7 @@ export class FTP extends EventEmitter {
         const pasvOrPort = async (): Promise<[Promise<void>, T]> => {
             if (!this._usePort || !this.options.portAddress) {
                 return getLast(this._send("PASV")).then((send) => {
-                    return reentry(send).then(async (sock): Promise<[Promise<void>, T]> => {
+                    return pasvReentry(send).then(async (sock): Promise<[Promise<void>, T]> => {
                         const res = await func(sock);
 
                         if (Array.isArray(res)) {
