@@ -1,5 +1,5 @@
 import { URL } from "url";
-import Client from "./connection";
+import Client, { IOptions } from "./connection";
 
 import { createInterface } from "readline";
 import { Writable } from "stream";
@@ -75,6 +75,7 @@ const r1 = createInterface({
 const args = process.argv.slice(2);
 
 const appConf = {
+    debug: false,
     enteredPassword: undefined as string | undefined,
     secure: undefined as string | boolean | undefined,
     state: 0,
@@ -83,13 +84,18 @@ const appConf = {
 function main() {
     appConf.state = 1;
     const url = new URL(args[0]);
-    const opt = {
+    const opt: Partial<IOptions> = {
         host: url.hostname,
         password: typeof appConf.enteredPassword === "undefined" ? url.password : appConf.enteredPassword,
         port: url.port ? parseInt(url.port, 10) : undefined,
         secure: typeof appConf.secure === "undefined" ? url.protocol === "ftps:" : appConf.secure,
         user: url.username,
     };
+    if (appConf.debug) {
+        opt.debug = (val) => {
+            console.log("ftp-ts: [VERBOSE] ", val);
+        };
+    }
     // console.log("Options: ", opt);
     // console.warn(url);
     Client.connect(opt).then((c) => {
@@ -203,19 +209,24 @@ function main() {
     });
 }
 
-if (args[0] === "--implicit") {
-    args.splice(0, 1);
-    appConf.secure = "implicit";
-}
-
-if (args[0] === "--secure-control") {
-    args.splice(0, 1);
-    appConf.secure = "control";
-}
-
-if (args[0] === "--explicit") {
-    args.splice(0, 1);
-    appConf.secure = true;
+for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === "-v") {
+        args.splice(i--, 1);
+        appConf.debug = true;
+    } else if (arg === "--implicit") {
+        args.splice(i--, 1);
+        appConf.secure = "implicit";
+    } else if (arg === "--secure-control") {
+        args.splice(i--, 1);
+        appConf.secure = "control";
+    } else if (arg === "--explicit") {
+        args.splice(i--, 1);
+        appConf.secure = true;
+    } else if (arg && arg[0] === "-" && arg !== "-p") {
+        args.splice(i--, 1);
+        console.warn("Unrecognized argument: " + JSON.stringify(arg));
+    }
 }
 
 if (args[0] === "-p") {
@@ -224,6 +235,7 @@ if (args[0] === "-p") {
     r1.question("Password: ", (val) => {
         muteWriteable.mute = false;
         appConf.enteredPassword = val;
+        muteWriteable.write("\r\n");
         main();
     });
     muteWriteable.mute = "*";
