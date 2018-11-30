@@ -7,11 +7,25 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Run test",
             "program": "${workspaceFolder}/test/test.js",
             // "preLaunchTask": "npm: build",
             "outFiles": [
                 "${workspaceFolder}/dist/**/*.js"
+            ],
+            "sourceMaps": true
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run bin",
+            "program": "${workspaceFolder}/dist/bin.js",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "args": [
+                "--implicit",
+                "-p",
             ],
             "sourceMaps": true
         }
