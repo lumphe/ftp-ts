@@ -1,6 +1,6 @@
 {
     "name": "ftp-ts",
-    "version": "1.0.15",
+    "version": "1.0.19",
     "author": "Alexander Lumphé <alu@kase.se>",
     "contributors": [
         "Tim Lundqvist <timluq+public@gmail.com>",
@@ -18,6 +18,7 @@
     },
     "scripts": {
         "test": "node test/test.js",
+        "bin": "node dist/bin.js",
         "build": "npm run build:tslint && npm run build:esm && npm run build-rollup && chmod +x dist/bin.js",
         "build:tslint": "tslint -p tsconfig.json",
         "build:esm": "tsc -p tsconfig.json --noImplicitAny || tsc -p tsconfig.json",

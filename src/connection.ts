@@ -145,7 +145,7 @@ const enum RETVAL {
     ERR_PERM = 5,
 }
 
-const bytesNOOP = new Buffer("NOOP\r\n");
+const bytesNOOP = Buffer.from("NOOP\r\n");
 
 export class FTP extends EventEmitter {
 
