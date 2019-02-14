@@ -45,7 +45,7 @@ export default class Parser extends WritableStream {
 
     public static parseListEntry(line: string) {
         // var ret, info, month, day, year, hour, mins;
-        let ret: IListUnix | IListMsDos | null;
+        let ret: IListUnix | IListMsDos | null;
         // tslint:disable-next-line:no-conditional-assignment
         if ((ret = regListUnix(line))) {
             let name;
@@ -153,7 +153,7 @@ export default class Parser extends WritableStream {
                 info.date = new Date(year + "-" + monthS + "-" + dayS + "T00:00");
             }
             return info;
-        // tslint:disable-next-line:no-conditional-assignment
+            // tslint:disable-next-line:no-conditional-assignment
         } else if ((ret = regListMsDos(line))) {
             const month = parseInt(ret.month, 10);
             const day = parseInt(ret.date, 10);
@@ -206,7 +206,7 @@ export default class Parser extends WritableStream {
             debug("[parser] write()");
         }
         this._buffer += chunk.toString("binary");
-        let m: RegExpExecArray | null;
+        let m: RegExpExecArray | null;
         if (debug) {
             debug("[parser] buffer: " + this._buffer);
         }
@@ -277,7 +277,7 @@ interface IListMsDos {
     name: string;
 }
 
-const REX_LISTUNIX = /^([\-ld])((?:[\-r][\-w][\-xstT]){3})(\+)?\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(?:(?:(\w{3})\s+(\d{1,2})\s+(\d{1,2}):(\d{2}))|(?:(\w{3})\s+(\d{1,2})\s+(\d{4})))\s+(.+)$/;
+const REX_LISTUNIX = /^([\-ld])((?:[\-r][\-w][\-xstT]){3})(\+)?\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(?:(?:(\w{3})\s+(\d{1,2})\s+(\d{1,2}):(\d{2}))|(?:(\w{3})\s+(\d{1,2})\s+(\d{4})))\s(.+)$/;
 function regListUnix(text: string): IListUnix | null {
     // "^(?<type>[\\-ld])(?<permission>([\\-r][\\-w][\\-xstT]){3})(?<acl>(\\+))?\\s+(?<inodes>\\d+)\\s+(?<owner>\\S+)\\s+(?<group>\\S+)\\s+(?<size>\\d+)\\s+(?<timestamp>((?<month1>\\w{3})\\s+(?<date1>\\d{1,2})\\s+(?<hour>\\d{1,2}):(?<minute>\\d{2}))|((?<month2>\\w{3})\\s+(?<date2>\\d{1,2})\\s+(?<year>\\d{4})))\\s+(?<name>.+)$"
     const temp = text.match(REX_LISTUNIX);
@@ -301,7 +301,7 @@ function regListUnix(text: string): IListUnix | null {
 }
 
 const REX_LISTMSDOS = /^(\d{2})(?:\-|\/)(\d{2})(?:\-|\/)(\d{2,4})\s+(\d{2}):(\d{2})\s{0,1}([AaMmPp]{1,2})\s+(?:(\d+)|(<DIR>))\s+(.+)$/;
-function regListMsDos(text: string): IListMsDos | null {
+function regListMsDos(text: string): IListMsDos | null {
     // "^(?<month>\\d{2})(?:\\-|\\/)(?<date>\\d{2})(?:\\-|\\/)(?<year>\\d{2,4})\\s+(?<hour>\\d{2}):(?<minute>\\d{2})\\s{0,1}(?<ampm>[AaMmPp]{1,2})\\s+(?:(?<size>\\d+)|(?<isdir>\\<DIR\\>))\\s+(?<name>.+)$"
     const temp = text.match(REX_LISTMSDOS);
     return temp === null ? null : {
