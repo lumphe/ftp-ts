@@ -508,7 +508,9 @@ export class FTP extends EventEmitter {
             let hasReset = false;
 
             const timer = setTimeout(() => {
-                this.emit("error", new Error("Timeout while connecting to server"));
+                if (this.listenerCount("error") || !doSignal) {
+                    this.emit("error", new Error("Timeout while connecting to server"));
+                }
                 if (this._socket) {
                     this._socket.destroy();
                 }
@@ -689,7 +691,11 @@ export class FTP extends EventEmitter {
             };
 
             source.on("data", (chunk) => {
-                buffer += decoder.write(chunk);
+                if (typeof chunk === "string") {
+                    buffer += decoder.write(Buffer.from(chunk));
+                } else {
+                    buffer += decoder.write(chunk);
+                }
             });
             source.once("error", (err2) => {
                 if (!(sock as any).aborting) {
@@ -857,7 +863,7 @@ export class FTP extends EventEmitter {
                         return true;
                     }
                     arg1.unshift(ev);
-                    _emit2.apply(sock, arg1);
+                    _emit2.apply<typeof sock, any[], boolean>(sock, arg1);
                     return true;
                 };
             }
@@ -903,7 +909,7 @@ export class FTP extends EventEmitter {
                 if (this._debug) {
                     this._debug("Get source emit: " + JSON.stringify(arg1));
                 }
-                _emit.apply(source, arg1);
+                _emit.apply<typeof source, any[], boolean>(source, arg1);
                 return true;
             };
 
@@ -962,11 +968,11 @@ export class FTP extends EventEmitter {
                     await getLast(this._send("MODE S", true));
                     const f = () => {
                         if (done) {
-                            _emit.call(source, "end");
-                            _emit.call(source, "close");
+                            _emit.call<typeof source, any[], boolean>(source, "end");
+                            _emit.call<typeof source, any[], boolean>(source, "close");
                         } else if (started) {
-                            _emit.call(source, "error", sockerr);
-                            _emit.call(source, "close", true);
+                            _emit.call<typeof source, any[], boolean>(source, "error", sockerr);
+                            _emit.call<typeof source, any[], boolean>(source, "close", true);
                         }
                     };
                     prom.then(f, f);
@@ -994,11 +1000,11 @@ export class FTP extends EventEmitter {
                 } finally {
                     const f = () => {
                         if (done) {
-                            _emit.call(source, "end");
-                            _emit.call(source, "close");
+                            _emit.call<typeof source, any[], boolean>(source, "end");
+                            _emit.call<typeof source, any[], boolean>(source, "close");
                         } else if (started) {
-                            _emit.call(source, "error", sockerr);
-                            _emit.call(source, "close", true);
+                            _emit.call<typeof source, any[], boolean>(source, "error", sockerr);
+                            _emit.call<typeof source, any[], boolean>(source, "close", true);
                         }
                     };
                     prom.then(f, f);

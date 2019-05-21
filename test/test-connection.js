@@ -71,10 +71,12 @@ function pipeall(input, output) {
 
 async function main() {
     console.log("Initializing FTP server");
-    const server = new FtpServer("ftp://127.0.0.1:2111", { 
-        // pasv_range: 2112,
+    const server = new FtpServer({ 
+        url: "ftp://127.0.0.1:2111",
+        // pasv_min: 2112,
+        // pasv_max: 2112,
         // blacklist: ["PASV"],
-        greeting: "Welcome to Marathon Communication FTP",
+        greeting: "Welcome to FTP-TS example Communication FTP",
         log: new LoggerThing({ name: "ftp-server" }),
         
     });

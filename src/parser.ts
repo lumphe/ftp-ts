@@ -87,11 +87,11 @@ export default class Parser extends WritableStream {
             }
 
             if (ret.month1 !== undefined && ret.date1 !== undefined && ret.hour !== undefined && ret.minute !== undefined) {
-                const month = MONTHS.get(ret.month1.toLowerCase()) as number;
-                const day = parseInt(ret.date1, 10);
+                const month = MONTHS.get(ret.month1!.toLowerCase()) as number;
+                const day = parseInt(ret.date1!, 10);
                 const year = (new Date()).getFullYear();
-                const hour = parseInt(ret.hour, 10);
-                const min = parseInt(ret.minute, 10);
+                const hour = parseInt(ret.hour!, 10);
+                const min = parseInt(ret.minute!, 10);
 
                 let monthS = month.toString();
                 let dayS = day.toString();
@@ -139,9 +139,9 @@ export default class Parser extends WritableStream {
                     info.date = new Date((year + 1) + "-" + month + "-" + day + "T" + hour + ":" + min);
                 }
             } else if (ret.month2 !== undefined && ret.date2 !== undefined && ret.year !== undefined) {
-                const month = MONTHS.get(ret.month2.toLowerCase()) as number;
-                const day = parseInt(ret.date2, 10);
-                const year = parseInt(ret.year, 10);
+                const month = MONTHS.get(ret.month2!.toLowerCase()) as number;
+                const day = parseInt(ret.date2!, 10);
+                const year = parseInt(ret.year!, 10);
                 let monthS = month.toString();
                 let dayS = day.toString();
                 if (month < 10) {
