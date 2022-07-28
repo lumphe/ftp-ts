@@ -8,7 +8,7 @@ import { IListingElement } from "./connection";
 const RE_ENTRY_TOTAL = /^total/;
 const RE_RES_END = /(?:^|\r?\n)(\d{3}) [^\r\n]*\r?\n/;
 const RE_EOL = /\r?\n/g;
-const RE_DASH = /\-/g;
+const RE_DASH = /-/g;
 
 // TODO:  CHANGE TO MAP
 const MONTHS = new Map([
@@ -29,7 +29,6 @@ const MONTHS = new Map([
 // type NamedRegexpArray = RegExpExecArray & { [k: string]: string; };
 
 export default class Parser extends WritableStream {
-
     public static parseFeat(text: string): string[] {
         const lines = text.split(RE_EOL);
         lines.shift(); // initial response line
@@ -45,7 +44,7 @@ export default class Parser extends WritableStream {
 
     public static parseListEntry(line: string) {
         // var ret, info, month, day, year, hour, mins;
-        let ret: IListUnix | IListMsDos | null;
+        let ret: Readonly<IListUnix | IListMsDos | null>;
         // tslint:disable-next-line:no-conditional-assignment
         if ((ret = regListUnix(line))) {
             let name;
@@ -58,7 +57,7 @@ export default class Parser extends WritableStream {
                 name = ret.name;
             }
             const info: IListingElement = {
-                acl: (ret.acl === "+"),
+                acl: ret.acl === "+",
                 date: undefined,
                 group: ret.group,
                 name,
@@ -86,12 +85,17 @@ export default class Parser extends WritableStream {
                 }
             }
 
-            if (ret.month1 !== undefined && ret.date1 !== undefined && ret.hour !== undefined && ret.minute !== undefined) {
-                const month = MONTHS.get(ret.month1!.toLowerCase()) as number;
-                const day = parseInt(ret.date1!, 10);
-                const year = (new Date()).getFullYear();
-                const hour = parseInt(ret.hour!, 10);
-                const min = parseInt(ret.minute!, 10);
+            if (
+                ret.month1 !== undefined &&
+                ret.date1 !== undefined &&
+                ret.hour !== undefined &&
+                ret.minute !== undefined
+            ) {
+                const month = MONTHS.get(ret.month1.toLowerCase()) as number;
+                const day = parseInt(ret.date1, 10);
+                const year = new Date().getFullYear();
+                const hour = parseInt(ret.hour, 10);
+                const min = parseInt(ret.minute, 10);
 
                 let monthS = month.toString();
                 let dayS = day.toString();
@@ -123,6 +127,7 @@ export default class Parser extends WritableStream {
                 // future (1 hour + maximum timezone offset which is 27 hours),
                 // there is a problem -- we should be in the second conditional block
                 if (info.date.getTime() - Date.now() > 100800000) {
+                    // eslint-disable-next-line prettier/prettier
                     info.date = new Date((year - 1) + "-" + month + "-" + day + "T" + hour + ":" + min);
                 }
 
@@ -136,12 +141,13 @@ export default class Parser extends WritableStream {
                 // Our trigger point will be 3600*24*31*6 (since we already use 31
                 // as an upper bound, no need to add the 27 hours timezone offset)
                 if (Date.now() - info.date.getTime() > 16070400000) {
+                    // eslint-disable-next-line prettier/prettier
                     info.date = new Date((year + 1) + "-" + month + "-" + day + "T" + hour + ":" + min);
                 }
             } else if (ret.month2 !== undefined && ret.date2 !== undefined && ret.year !== undefined) {
-                const month = MONTHS.get(ret.month2!.toLowerCase()) as number;
-                const day = parseInt(ret.date2!, 10);
-                const year = parseInt(ret.year!, 10);
+                const month = MONTHS.get(ret.month2.toLowerCase()) as number;
+                const day = parseInt(ret.date2, 10);
+                const year = parseInt(ret.year, 10);
                 let monthS = month.toString();
                 let dayS = day.toString();
                 if (month < 10) {
@@ -153,7 +159,6 @@ export default class Parser extends WritableStream {
                 info.date = new Date(year + "-" + monthS + "-" + dayS + "T00:00");
             }
             return info;
-        // tslint:disable-next-line:no-conditional-assignment
         } else if ((ret = regListMsDos(line))) {
             const month = parseInt(ret.month, 10);
             const day = parseInt(ret.date, 10);
@@ -176,8 +181,8 @@ export default class Parser extends WritableStream {
             const info: IListingElement = {
                 date: new Date(year, month - 1, day, hour, mins),
                 name: ret.name,
-                size: (ret.isdir ? 0 : parseInt(ret.size, 10)),
-                type: (ret.isdir ? "d" : "-"),
+                size: ret.isdir ? 0 : parseInt(ret.size, 10),
+                type: ret.isdir ? "d" : "-",
             };
 
             // info.date = new Date(year, month - 1, day, hour, mins);
@@ -191,10 +196,12 @@ export default class Parser extends WritableStream {
         // throw new Error("No match found!");
     }
 
-    private _debug?: any;
-    private _buffer: string = "";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private _debug?: (output: string) => void;
+    private _buffer = "";
 
-    public constructor(options: { debug: any }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    public constructor(options: { debug?: (output: string) => void }) {
         super();
         // WritableStream.call(this);
         this._debug = options.debug;
@@ -206,7 +213,7 @@ export default class Parser extends WritableStream {
             debug("[parser] write()");
         }
         this._buffer += chunk.toString("binary");
-        let m: RegExpExecArray | null;
+        let m: RegExpExecArray | null;
         if (debug) {
             debug("[parser] buffer: " + this._buffer);
         }
@@ -277,11 +284,15 @@ interface IListMsDos {
     name: string;
 }
 
-const REX_LISTUNIX = /^([\-ld])((?:[\-r][\-w][\-xstT]){3})(\+)?\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(?:(?:(\w{3})\s+(\d{1,2})\s+(\d{1,2}):(\d{2}))|(?:(\w{3})\s+(\d{1,2})\s+(\d{4})))\s+(.+)$/;
+const REX_LISTUNIX =
+    /^([-ld])((?:[-r][-w][-xstT]){3})(\+)?\s+(\d+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(?:(?:(\w{3})\s+(\d{1,2})\s+(\d{1,2}):(\d{2}))|(?:(\w{3})\s+(\d{1,2})\s+(\d{4})))\s+(.+)$/;
 function regListUnix(text: string): IListUnix | null {
     // "^(?<type>[\\-ld])(?<permission>([\\-r][\\-w][\\-xstT]){3})(?<acl>(\\+))?\\s+(?<inodes>\\d+)\\s+(?<owner>\\S+)\\s+(?<group>\\S+)\\s+(?<size>\\d+)\\s+(?<timestamp>((?<month1>\\w{3})\\s+(?<date1>\\d{1,2})\\s+(?<hour>\\d{1,2}):(?<minute>\\d{2}))|((?<month2>\\w{3})\\s+(?<date2>\\d{1,2})\\s+(?<year>\\d{4})))\\s+(?<name>.+)$"
     const temp = text.match(REX_LISTUNIX);
-    return temp === null ? null : {
+    if (!temp) {
+        return null;
+    }
+    return {
         acl: temp[3],
         date1: temp[9],
         date2: temp[13],
@@ -300,11 +311,15 @@ function regListUnix(text: string): IListUnix | null {
     };
 }
 
-const REX_LISTMSDOS = /^(\d{2})(?:\-|\/)(\d{2})(?:\-|\/)(\d{2,4})\s+(\d{2}):(\d{2})\s{0,1}([AaMmPp]{1,2})\s+(?:(\d+)|(<DIR>))\s+(.+)$/;
-function regListMsDos(text: string): IListMsDos | null {
+const REX_LISTMSDOS =
+    /^(\d{2})(?:-|\/)(\d{2})(?:-|\/)(\d{2,4})\s+(\d{2}):(\d{2})\s{0,1}([AaMmPp]{1,2})\s+(?:(\d+)|(<DIR>))\s+(.+)$/;
+function regListMsDos(text: string): IListMsDos | null {
     // "^(?<month>\\d{2})(?:\\-|\\/)(?<date>\\d{2})(?:\\-|\\/)(?<year>\\d{2,4})\\s+(?<hour>\\d{2}):(?<minute>\\d{2})\\s{0,1}(?<ampm>[AaMmPp]{1,2})\\s+(?:(?<size>\\d+)|(?<isdir>\\<DIR\\>))\\s+(?<name>.+)$"
     const temp = text.match(REX_LISTMSDOS);
-    return temp === null ? null : {
+    if (!temp) {
+        return null;
+    }
+    return {
         ampm: temp[6],
         date: temp[2],
         hour: temp[4],

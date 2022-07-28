@@ -9,11 +9,11 @@ It is a rewritten version of the [ftp package](https://github.com/mscdex/node-ft
 
 [node.js](http://nodejs.org/) -- v8.0 or newer
 
+Note: For node version &lt; 10, one of the `--harmony_async_iteration` or `--harmony` flags must be used.
 
 ## Install
 
     npm install ftp-ts
-
 
 ## Examples
 
@@ -190,7 +190,7 @@ Retrieves a file at `path` from the server.
 
 ### ftp.put(input, destPath[, useCompression])
 
-* `input`          [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) | [&lt;buffer&gt;](https://nodejs.org/api/buffer.html#buffer_class_buffer) | [&lt;stream.Readable&gt;](https://nodejs.org/api/stream.html#stream_class_stream_readable) The file name as a string, the file content as a buffer, the file content as a stream.
+* `input`          [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) | [&lt;buffer&gt;](https://nodejs.org/api/buffer.html#buffer_class_buffer) | [&lt;stream.Readable&gt;](https://nodejs.org/api/stream.html#stream_class_stream_readable) The file name as a string, the file content as a buffer, the file content as a stream.
 * `destPath`       [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) The name of the file to write.
 * `useCompression` [&lt;boolean&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type) **Default:** `false`.
 * Returns:         [&lt;Promise&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)
@@ -199,7 +199,7 @@ Sends data to the server to be stored as `destPath`.
 
 ### ftp.append(input, destPath[, useCompression])
 
-* `input`          [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) | [&lt;buffer&gt;](https://nodejs.org/api/buffer.html#buffer_class_buffer) | [&lt;stream.Readable&gt;](https://nodejs.org/api/stream.html#stream_class_stream_readable) The file name as a string, the file content as a buffer, the file content as a stream.
+* `input`          [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) | [&lt;buffer&gt;](https://nodejs.org/api/buffer.html#buffer_class_buffer) | [&lt;stream.Readable&gt;](https://nodejs.org/api/stream.html#stream_class_stream_readable) The file name as a string, the file content as a buffer, the file content as a stream.
 * `destPath`       [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) The name of the file to write.
 * `useCompression` [&lt;boolean&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type) **Default:** `false`.
 * Returns:         [&lt;Promise&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)
@@ -291,7 +291,7 @@ Changes the working directory to the parent of the current directory.
 
 ### ftp.pwd()
 
-* Returns:         [&lt;Promise&lt;string | undefined&gt;&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) The promise is resolved to a [string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) when the server replies with a path.
+* Returns:         [&lt;Promise&lt;string | undefined&gt;&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) The promise is resolved to a [string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) when the server replies with a path.
 
 Retrieves the current working directory.
 

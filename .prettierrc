@@ -1,0 +1,12 @@
+{
+    "semi": true,
+    "trailingComma": "es5",
+    "printWidth": 120,
+    "arrowParens": "always",
+    "endOfLine": "lf",
+    "tabWidth": 4,
+    "plugins": [
+        "prettier-plugin-multiline-arrays"
+    ],
+    "multilineArraysWrapThreshold": 2
+}

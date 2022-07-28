@@ -1,10 +1,14 @@
 import { URL } from "url";
 import Client, { IOptions } from "./connection";
 
-import { createInterface } from "readline";
+import { createInterface, ReadLineOptions } from "readline";
 import { Writable } from "stream";
 
-const knownCmd = ["list", "get", "put"];
+const knownCmd = [
+    "list",
+    "get",
+    "put",
+];
 
 const completer = (line: string, cb: (e: Error | null, r: [string[], string]) => void) => {
     if (appConf.state) {
@@ -16,40 +20,49 @@ const completer = (line: string, cb: (e: Error | null, r: [string[], string]) =>
 };
 
 interface IMutableWriteable extends Writable {
-    mute: string | boolean;
+    mute: string | boolean;
 }
 
 const symMute = Symbol("Mute");
 
 // tslint:disable-next-line:variable-name
 const MutableWriteable = (out: Writable): IMutableWriteable => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (out as any)[symMute] = false;
     return new Proxy(out as IMutableWriteable, {
         get(target, prop) {
             if (prop === "mute") {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 return (target as any)[symMute];
             }
             if (prop === "_write") {
-                return function _write(chunk: any, encoding?: string, cb?: ((err?: any) => any) | undefined) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                return function _write(chunk: any, encoding?: string, cb?: ((err?: any) => any) | undefined) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const mute = (target as any)[symMute];
                     if (mute === false) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         target._write(chunk, encoding as any, cb as any);
                     } else if (mute === true || mute === "" || (typeof chunk === "object" && !Buffer.isBuffer(chunk))) {
                         if (cb) {
                             cb();
                         }
                     } else {
-                        target._write(mute.repeat(chunk.length), encoding || "uft8", cb as any);
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        target._write(mute.repeat(chunk.length), encoding || "uft8", cb as any);
                     }
                 };
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return (target as any)[prop];
         },
         set(target, prop, value) {
             if (prop === "mute") {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (target as any)[symMute] = value;
                 return true;
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (target as any)[prop] = value;
             return true;
         },
@@ -57,7 +70,7 @@ const MutableWriteable = (out: Writable): IMutableWriteable => {
             if (prop === "mute") {
                 return true;
             }
-            return target.hasOwnProperty(prop);
+            return Object.prototype.hasOwnProperty.call(target, prop);
         },
     });
 };
@@ -70,14 +83,14 @@ const r1 = createInterface({
     output: muteWriteable,
     prompt: "ftps-ts> ",
     // terminal: true,
-});
+} as ReadLineOptions);
 
 const args = process.argv.slice(2);
 
 const appConf = {
     debug: false,
-    enteredPassword: undefined as string | undefined,
-    secure: undefined as string | boolean | undefined,
+    enteredPassword: undefined as string | undefined,
+    secure: undefined as string | boolean | undefined,
     state: 0,
 };
 
@@ -99,15 +112,14 @@ function main() {
     // console.log("Options: ", opt);
     // console.warn(url);
     Client.connect(opt).then((c) => {
-
         // console.warn((c as any)._socket);
 
-        return new Promise((res) => {
+        return new Promise<void>((res) => {
             r1.on("SIGINT", async () => {
                 try {
                     await c.logout();
                 } catch (e) {
-                    r1.write(e);
+                    r1.write(e as string);
                 }
                 process.stdin.pause();
                 res();
@@ -120,7 +132,7 @@ function main() {
                     try {
                         console.dir(await c.list());
                     } catch (e) {
-                        r1.write(e);
+                        r1.write(e as string);
                     }
                 } else if (cmd === "get") {
                     const path = params[1];
@@ -129,7 +141,7 @@ function main() {
                         try {
                             await c.get(path, compression);
                         } catch (e) {
-                            r1.write(e);
+                            r1.write(e as string);
                         }
                     } else {
                         r1.write("Path are need to do get.");
@@ -142,7 +154,7 @@ function main() {
                         try {
                             await c.put(path, dest, compression);
                         } catch (e) {
-                            r1.write(e);
+                            r1.write(e as string);
                         }
                     } else {
                         r1.write("Path to file and destination are needed.");
@@ -155,7 +167,7 @@ function main() {
                         try {
                             await c.append(path, dest, compression);
                         } catch (e) {
-                            r1.write(e);
+                            r1.write(e as string);
                         }
                     } else {
                         r1.write("Path to file and destination are needed.");
@@ -167,16 +179,16 @@ function main() {
                         try {
                             await c.rename(oldPath, newPath);
                         } catch (e) {
-                            r1.write(e);
+                            r1.write(e as string);
                         }
                     } else {
                         r1.write("Old and new path are needed.");
                     }
-                } else if (cmd === "logout" || cmd === "exit") {
+                } else if (cmd === "logout" || cmd === "exit") {
                     try {
                         await c.logout();
                     } catch (e) {
-                        r1.write(e);
+                        r1.write(e as string);
                     }
                     process.stdin.pause();
                     res();
@@ -186,7 +198,7 @@ function main() {
                         try {
                             await c.delete(path);
                         } catch (e) {
-                            r1.write(e);
+                            r1.write(e as string);
                         }
                     } else {
                         r1.write("Path needed to delete a file.");
