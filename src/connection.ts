@@ -3,7 +3,7 @@ import * as net from "net";
 import { StringDecoder } from "string_decoder";
 import * as tls from "tls";
 import zlib from "zlib";
-import Parser from "./parser";
+import Parser, { parseListEntry, parseMlsxEntry } from "./parser";
 
 export interface IOptions {
     /**
@@ -401,7 +401,7 @@ export class FTP extends EventEmitter {
                     } else if (cmd === "PROT") {
                         cmd = "USER";
                         return getLast(this._send("USER " + this.options.user, true)).then(reentry);
-                    } else if (cmd.substr(0, 4) === "AUTH") {
+                    } else if (cmd.substring(0, 4) === "AUTH") {
                         if (cmd === "AUTH TLS" && code !== 234) {
                             cmd = "AUTH SSL";
                             return getLast(this._send(cmd, true)).then(reentry);
@@ -694,15 +694,32 @@ export class FTP extends EventEmitter {
     public list(useCompression: boolean): Promise<Array<IListingElement | string>>;
     public async list(path?: string | boolean, useCompression?: boolean): Promise<Array<IListingElement | string>> {
         let cmd: string;
+        const feat = this._feat || [];
+        let mlst: undefined | string[] = undefined;
+        for (const f of feat) {
+            if (!f.startsWith("MLST ")) {
+                continue;
+            }
+            const ff = f.substring(5).split(";");
+            if (ff.length && !ff[ff.length - 1]) {
+                ff.pop();
+            }
+            mlst = ff;
+            break;
+        }
 
         if (typeof path === "boolean") {
             useCompression = path;
             path = undefined;
-            cmd = "LIST";
-        } else if (!path) {
-            cmd = "LIST";
-        } else {
+        }
+        if (path && mlst) {
+            cmd = "MLSD " + path;
+        } else if (path) {
             cmd = "LIST " + path;
+        } else if (mlst) {
+            cmd = "MLSD";
+        } else {
+            cmd = "LIST";
         }
 
         return this._pasv(async (sock) => {
@@ -829,12 +846,23 @@ export class FTP extends EventEmitter {
                     }
                     entries.pop(); // ending EOL
                     const parsed: Array<IListingElement | string> = [];
-                    for (let i = 0, len = entries.length; i < len; ++i) {
-                        const parsedVal = Parser.parseListEntry(entries[i]);
-                        if (parsedVal !== null) {
-                            parsed.push(parsedVal);
-                        } else if (this._debug) {
-                            this._debug("Skipped entry listing: " + JSON.stringify(entries[i]));
+                    if (cmd.startsWith("MLSD")) {
+                        for (let i = 0, len = entries.length; i < len; ++i) {
+                            const parsedVal = parseMlsxEntry(entries[i]);
+                            if (typeof parsedVal != "string") {
+                                parsed.push(parsedVal);
+                            } else if (this._debug) {
+                                this._debug("Skipped entry listing: " + parsedVal + ": " + JSON.stringify(entries[i]));
+                            }
+                        }
+                    } else {
+                        for (let i = 0, len = entries.length; i < len; ++i) {
+                            const parsedVal = parseListEntry(entries[i]);
+                            if (parsedVal !== null) {
+                                parsed.push(parsedVal);
+                            } else if (this._debug) {
+                                this._debug("Skipped entry listing: " + JSON.stringify(entries[i]));
+                            }
                         }
                     }
 
