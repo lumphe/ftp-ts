@@ -1,141 +1,165 @@
-var Parser = require('../dist/parser').default,
-    parseListEntry = Parser.parseListEntry;
+/* eslint-disable @typescript-eslint/no-var-requires */
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path="../node_modules/@types/node/index.d.ts" />
 
-var path = require('path'),
-    assert = require('assert'),
-    inspect = require('util').inspect;
+// eslint-disable-next-line no-undef
+var parseListEntry = require("../dist/parser").parseListEntry;
 
-var group = path.basename(__filename, '.js') + '/';
+// eslint-disable-next-line no-undef
+var path = require("path");
+// eslint-disable-next-line no-undef
+var assert = require("assert");
+// eslint-disable-next-line no-undef
+var inspect = require("util").inspect;
+
+// eslint-disable-next-line no-undef
+var group = path.basename(__filename, ".js") + "/";
 
 [
-  { source: 'drwxr-xr-x  10 root   root    4096 Dec 21  2012 usr',
-    expected: {
-      type: 'd',
-      name: 'usr',
-      target: undefined,
-      sticky: false,
-      rights: { user: 'rwx', group: 'rx', other: 'rx' },
-      acl: false,
-      owner: 'root',
-      group: 'root',
-      size: 4096,
-      date: new Date('2012-12-21T00:00')
+    {
+        source: "drwxr-xr-x  10 root   root    4096 Dec 21  2012 usr",
+        expected: {
+            type: "d",
+            name: "usr",
+            target: undefined,
+            sticky: false,
+            rights: { user: "rwx", group: "rx", other: "rx" },
+            acl: false,
+            owner: "root",
+            group: "root",
+            size: 4096,
+            date: new Date("2012-12-21T00:00"),
+        },
+        what: "Normal directory",
     },
-    what: 'Normal directory'
-  },
-  { source: 'drwxrwxrwx   1 owner   group          0 Aug 31 2012 e-books',
-    expected: {
-      type: 'd',
-      name: 'e-books',
-      target: undefined,
-      sticky: false,
-      rights: { user: 'rwx', group: 'rwx', other: 'rwx' },
-      acl: false,
-      owner: 'owner',
-      group: 'group',
-      size: 0,
-      date: new Date('2012-08-31T00:00')
+    {
+        source: "drwxrwxrwx   1 owner   group          0 Aug 31 2012 e-books",
+        expected: {
+            type: "d",
+            name: "e-books",
+            target: undefined,
+            sticky: false,
+            rights: { user: "rwx", group: "rwx", other: "rwx" },
+            acl: false,
+            owner: "owner",
+            group: "group",
+            size: 0,
+            date: new Date("2012-08-31T00:00"),
+        },
+        what: "Normal directory #2",
     },
-    what: 'Normal directory #2'
-  },
-  { source: '-rw-rw-rw-   1 owner   group    7045120 Sep 02  2012 music.mp3',
-    expected: {
-      type: '-',
-      name: 'music.mp3',
-      target: undefined,
-      sticky: false,
-      rights: { user: 'rw', group: 'rw', other: 'rw' },
-      acl: false,
-      owner: 'owner',
-      group: 'group',
-      size: 7045120,
-      date: new Date('2012-09-02T00:00')
+    {
+        source: "-rw-rw-rw-   1 owner   group    7045120 Sep 02  2012 music.mp3",
+        expected: {
+            type: "-",
+            name: "music.mp3",
+            target: undefined,
+            sticky: false,
+            rights: { user: "rw", group: "rw", other: "rw" },
+            acl: false,
+            owner: "owner",
+            group: "group",
+            size: 7045120,
+            date: new Date("2012-09-02T00:00"),
+        },
+        what: "Normal file",
     },
-    what: 'Normal file'
-  },
-  { source: '-rw-rw-rw-+   1 owner   group    7045120 Sep 02  2012 music.mp3',
-    expected: {
-      type: '-',
-      name: 'music.mp3',
-      target: undefined,
-      sticky: false,
-      rights: { user: 'rw', group: 'rw', other: 'rw' },
-      acl: true,
-      owner: 'owner',
-      group: 'group',
-      size: 7045120,
-      date: new Date('2012-09-02T00:00')
+    {
+        source: "-rw-rw-rw-+   1 owner   group    7045120 Sep 02  2012 music.mp3",
+        expected: {
+            type: "-",
+            name: "music.mp3",
+            target: undefined,
+            sticky: false,
+            rights: { user: "rw", group: "rw", other: "rw" },
+            acl: true,
+            owner: "owner",
+            group: "group",
+            size: 7045120,
+            date: new Date("2012-09-02T00:00"),
+        },
+        what: "File with ACL set",
     },
-    what: 'File with ACL set'
-  },
-  { source: 'drwxrwxrwt   7 root   root    4096 May 19 2012 tmp',
-    expected: {
-      type: 'd',
-      name: 'tmp',
-      target: undefined,
-      sticky: true,
-      rights: { user: 'rwx', group: 'rwx', other: 'rwx' },
-      acl: false,
-      owner: 'root',
-      group: 'root',
-      size: 4096,
-      date: new Date('2012-05-19T00:00')
+    {
+        source: "drwxrwxrwt   7 root   root    4096 May 19 2012 tmp",
+        expected: {
+            type: "d",
+            name: "tmp",
+            target: undefined,
+            sticky: true,
+            rights: { user: "rwx", group: "rwx", other: "rwx" },
+            acl: false,
+            owner: "root",
+            group: "root",
+            size: 4096,
+            date: new Date("2012-05-19T00:00"),
+        },
+        what: "Directory with sticky bit and executable for others",
     },
-    what: 'Directory with sticky bit and executable for others'
-  },
-  { source: 'drwxrwx--t   7 root   root    4096 May 19 2012 tmp',
-    expected: {
-      type: 'd',
-      name: 'tmp',
-      target: undefined,
-      sticky: true,
-      rights: { user: 'rwx', group: 'rwx', other: 'x' },
-      acl: false,
-      owner: 'root',
-      group: 'root',
-      size: 4096,
-      date: new Date('2012-05-19T00:00')
+    {
+        source: "drwxrwx--t   7 root   root    4096 May 19 2012 tmp",
+        expected: {
+            type: "d",
+            name: "tmp",
+            target: undefined,
+            sticky: true,
+            rights: { user: "rwx", group: "rwx", other: "x" },
+            acl: false,
+            owner: "root",
+            group: "root",
+            size: 4096,
+            date: new Date("2012-05-19T00:00"),
+        },
+        what: "Directory with sticky bit and executable for others #2",
     },
-    what: 'Directory with sticky bit and executable for others #2'
-  },
-  { source: 'drwxrwxrwT   7 root   root    4096 May 19 2012 tmp',
-    expected: {
-      type: 'd',
-      name: 'tmp',
-      target: undefined,
-      sticky: true,
-      rights: { user: 'rwx', group: 'rwx', other: 'rw' },
-      acl: false,
-      owner: 'root',
-      group: 'root',
-      size: 4096,
-      date: new Date('2012-05-19T00:00')
+    {
+        source: "drwxrwxrwT   7 root   root    4096 May 19 2012 tmp",
+        expected: {
+            type: "d",
+            name: "tmp",
+            target: undefined,
+            sticky: true,
+            rights: { user: "rwx", group: "rwx", other: "rw" },
+            acl: false,
+            owner: "root",
+            group: "root",
+            size: 4096,
+            date: new Date("2012-05-19T00:00"),
+        },
+        what: "Directory with sticky bit and not executable for others",
     },
-    what: 'Directory with sticky bit and not executable for others'
-  },
-  { source: 'drwxrwx--T   7 root   root    4096 May 19 2012 tmp',
-    expected: {
-      type: 'd',
-      name: 'tmp',
-      target: undefined,
-      sticky: true,
-      rights: { user: 'rwx', group: 'rwx', other: '' },
-      acl: false,
-      owner: 'root',
-      group: 'root',
-      size: 4096,
-      date: new Date('2012-05-19T00:00')
+    {
+        source: "drwxrwx--T   7 root   root    4096 May 19 2012 tmp",
+        expected: {
+            type: "d",
+            name: "tmp",
+            target: undefined,
+            sticky: true,
+            rights: { user: "rwx", group: "rwx", other: "" },
+            acl: false,
+            owner: "root",
+            group: "root",
+            size: 4096,
+            date: new Date("2012-05-19T00:00"),
+        },
+        what: "Directory with sticky bit and not executable for others #2",
     },
-    what: 'Directory with sticky bit and not executable for others #2'
-  },
-  { source: 'total 871',
-    expected: null,
-    what: 'Ignored line'
-  },
-].forEach(function(v) {
-  var result = parseListEntry(v.source),
-      msg = '[' + group + v.what + ']: parsed output mismatch.\n'
-            + 'Saw: ' + inspect(result) + '\n'
-            + 'Expected: ' + inspect(v.expected);
-  assert.deepEqual(result, v.expected, msg);
+    {
+        source: "total 871",
+        expected: null,
+        what: "Ignored line",
+    },
+].forEach((v) => {
+    var result = parseListEntry(v.source);
+    var msg =
+        "[" +
+        group +
+        v.what +
+        "]: parsed output mismatch.\n" +
+        "Saw: " +
+        inspect(result) +
+        "\n" +
+        "Expected: " +
+        inspect(v.expected);
+    assert.deepEqual(result, v.expected, msg);
 });
