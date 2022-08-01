@@ -1,4 +1,4 @@
-import EventEmitter from "events";
+import { EventEmitter } from "events";
 import * as net from "net";
 import { StringDecoder } from "string_decoder";
 import * as tls from "tls";
