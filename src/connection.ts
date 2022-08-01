@@ -56,6 +56,19 @@ export interface IOptions {
     portAddress?: string;
 
     portRange?: string;
+
+    overrideFeats?: {
+        AUTH?: false | string;
+        EPRT?: boolean;
+        EPSV?: boolean;
+        MDTM?: boolean;
+        MFMT?: boolean;
+        MLST?: false | string;
+        PASV?: boolean;
+        SIZE?: boolean;
+        UTF8?: boolean;
+        [k: string]: boolean | string | undefined;
+    };
 }
 
 /**
@@ -133,7 +146,8 @@ interface ICurReq {
     cb: ICallback;
 }
 
-const RE_PASV = /([\d]+),([\d]+),([\d]+),([\d]+),([-\d]+),([-\d]+)/;
+const RE_PASV = /(\d+),(\d+),(\d+),(\d+),([-\d]+),([-\d]+)/;
+const RE_EPSV = /\((.)\1\1(\d+)\1\)/;
 const RE_EOL = /\r?\n/g;
 const RE_WD = /"(.+)"(?: |$)/;
 const RE_SYST = /^([^ ]+)(?: |$)/;
@@ -154,8 +168,14 @@ export class FTP extends EventEmitter {
      * @param options connect options
      * @returns a connected `FTP` instance
      */
-    public static connect(options: Partial<IOptions> = {}): Promise<FTP> {
-        return new FTP().connect(options);
+    public static async connect(options: Partial<IOptions> = {}): Promise<FTP> {
+        const ftp = new FTP();
+        try {
+            return await ftp.connect(options);
+        } catch (e) {
+            ftp.logout().catch((e) => e);
+            throw e;
+        }
     }
 
     // tslint:disable-next-line:no-object-literal-type-assertion
@@ -176,7 +196,17 @@ export class FTP extends EventEmitter {
     private _keepalive?: NodeJS.Timer;
     private _ending = false;
     private _parser?: Parser;
-    private _usePort = false;
+    private readonly _detectedSupport: {
+        cdup?: boolean;
+        cwd?: boolean;
+        eprt?: boolean;
+        epsv?: boolean;
+        mdtm?: boolean;
+        pasv?: boolean;
+        port?: boolean;
+        size?: boolean;
+        [k: string]: boolean | undefined;
+    } = {};
 
     /**
      * The features the most recently connected server supports.
@@ -205,6 +235,7 @@ export class FTP extends EventEmitter {
             this.options.aliveTimeout = options.keepalive || 10000;
             this.options.portAddress = options.portAddress;
             this.options.portRange = options.portRange;
+            this.options.overrideFeats = options.overrideFeats;
 
             if (typeof options.debug === "function") {
                 this._debug = options.debug;
@@ -330,11 +361,12 @@ export class FTP extends EventEmitter {
                         (cmd === "PBSZ" && code !== 200) ||
                         (cmd === "PROT" && code !== 200)
                     ) {
-                        this.emit("error", makeError(code, "Unable to secure connection(s)"));
+                        const err = new ErrorWithCode(code, "Unable to secure connection(s)");
+                        this.emit("error", err);
                         if (this._socket) {
                             this._socket.end();
                         }
-                        throw makeError(code, "Unable to secure connection(s)");
+                        throw err;
                     }
 
                     if (!cmd) {
@@ -387,6 +419,39 @@ export class FTP extends EventEmitter {
                                     ] as [number, string];
                                 }
                             )
+                            .then((r) => {
+                                if (!this._feat) {
+                                    this._feat = [];
+                                }
+                                const overrideFeats = this.options.overrideFeats;
+                                if (overrideFeats) {
+                                    for (const k of Object.keys(overrideFeats)) {
+                                        const v = overrideFeats[k];
+                                        if (typeof v == "boolean") {
+                                            const i = this._feat.findIndex((a) => a == k || a.startsWith(k + " "));
+                                            if (i == -1 && v) {
+                                                this._feat.push(k);
+                                                continue;
+                                            }
+                                            if (i != -1 && !v) {
+                                                this._feat.splice(i, 1);
+                                                continue;
+                                            }
+                                            continue;
+                                        }
+                                        if (typeof v == "string") {
+                                            const i = this._feat.findIndex((a) => a == k || a.startsWith(k + " "));
+                                            if (i == -1) {
+                                                this._feat.push(k + " " + v);
+                                                continue;
+                                            }
+                                            this._feat[i] = k + " " + v;
+                                            continue;
+                                        }
+                                    }
+                                }
+                                return r;
+                            })
                             .then(reentry);
                     } else if (cmd === "FEAT") {
                         cmd = "TYPE";
@@ -615,7 +680,7 @@ export class FTP extends EventEmitter {
     }
 
     /**
-     * Delete a file on the server
+     * Delete a file on the server.
      */
     public delete(path: string): Promise<void> {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -623,8 +688,7 @@ export class FTP extends EventEmitter {
     }
 
     /**
-     * Sends command (e.g. 'CHMOD 755 foo', 'QUOTA') using SITE. callback has 3 parameters:
-     * < Error >err, < _string >responseText, < integer >responseCode.
+     * Sends command (e.g. 'CHMOD 755 foo', 'QUOTA') using SITE.
      */
     public site(command: string): Promise<[number, string | undefined]> {
         return getLast(this._send("SITE " + command));
@@ -685,6 +749,53 @@ export class FTP extends EventEmitter {
         }
     }
 
+    public async fileInfo(path: string): Promise<IListingElement | null> {
+        const feat = this._feat || [];
+        let mlst: undefined | string[] = undefined;
+        if (this._detectedSupport.mlst !== false) {
+            for (const f of feat) {
+                if (!f.startsWith("MLST ")) {
+                    continue;
+                }
+                const ff = f.substring(5).split(";");
+                if (ff.length && !ff[ff.length - 1]) {
+                    ff.pop();
+                }
+                mlst = ff;
+                break;
+            }
+        }
+        if (!mlst) {
+            const list = await this.list(path, false);
+            let item: null | IListingElement = null;
+            if (list.length == 1 && typeof list[0] != "string") {
+                item = list[0];
+            } else {
+                for (const i of list) {
+                    if (typeof i == "string" || (i.name != "." && i.name != path)) {
+                        continue;
+                    }
+                    if (item && item.name == ".") {
+                        continue;
+                    }
+                    item = i;
+                }
+            }
+            return item;
+        }
+
+        const [code, text] = await allow502(getLast(this._send("MLST " + path, false)));
+        if (code == 502) {
+            this._detectedSupport.mlst = false;
+            return this.fileInfo(path);
+        }
+        const res = parseMlsxEntry(text || "");
+        if (typeof res == "string") {
+            throw new Error(res);
+        }
+        return res;
+    }
+
     /**
      * Retrieves the directory listing of path.
      * @param path defaults to the current working directory.
@@ -696,16 +807,18 @@ export class FTP extends EventEmitter {
         let cmd: string;
         const feat = this._feat || [];
         let mlst: undefined | string[] = undefined;
-        for (const f of feat) {
-            if (!f.startsWith("MLST ")) {
-                continue;
+        if (this._detectedSupport.mlst !== false) {
+            for (const f of feat) {
+                if (!f.startsWith("MLST ")) {
+                    continue;
+                }
+                const ff = f.substring(5).split(";");
+                if (ff.length && !ff[ff.length - 1]) {
+                    ff.pop();
+                }
+                mlst = ff;
+                break;
             }
-            const ff = f.substring(5).split(";");
-            if (ff.length && !ff[ff.length - 1]) {
-                ff.pop();
-            }
-            mlst = ff;
-            break;
         }
 
         if (typeof path === "boolean") {
@@ -796,22 +909,14 @@ export class FTP extends EventEmitter {
                         replies = 2;
                     }
                 }
+                if (typeof path == "string" && cmd.startsWith("MLSD ") && codes[codes.length - 1] == 501) {
+                    const r = await this.fileInfo(path);
+                    return { a: r ? [r] : [] };
+                }
                 if (replies === 2) {
                     return final();
                 }
                 throw new Error("Expected 2 replies for list, count: " + replies + ", codes: " + codes.join(", "));
-                /*return this._send(cmd, true).then(([code]) => {
-                    // some servers may not open a data connection for empty directories
-                    if (++replies === 1 && code === 226) {
-                        replies = 2;
-                        // sock.destroy();
-                        return final();
-                    } else if (replies === 2) {
-                        return final();
-                    } else {
-                        return prom;
-                    }
-                });*/
             };
 
             const final = () => {
@@ -866,13 +971,6 @@ export class FTP extends EventEmitter {
                         }
                     }
 
-                    /*if (useCompression) {
-                        return this._send("MODE S", true).then(() => {
-                            return parsed;
-                        });
-                    } else {
-                        return parsed;
-                    }*/
                     const result = { a: parsed };
                     if (inRes) {
                         inRes(result);
@@ -889,18 +987,8 @@ export class FTP extends EventEmitter {
                 try {
                     return await sendList();
                 } finally {
-                    await this._send("MODE S", true);
+                    await getLast(this._send("MODE S", true));
                 }
-
-                /*return this._send("MODE Z", true).then(async ([code]) => {
-                    try {
-                        return await sendList();
-                    } finally {
-                        await this._send("MODE S", true);
-                    }
-                }, (e) => {
-                    throw new Error("Compression not supported");
-                });*/
             } else {
                 return sendList();
             }
@@ -1123,17 +1211,15 @@ export class FTP extends EventEmitter {
      * Retrieves the current working directory
      */
     public async pwd(): Promise<string | undefined> {
-        const [code, text] = await getLast(this._send("PWD"));
-        if (code === 502) {
-            return this.cwd(".", true);
-        }
-        return text && (RE_WD.exec(text) || [])[1];
-        /*return this._send("PWD").then(([code, text]) => {
-            if (code === 502) {
-                return this.cwd(".", true);
+        if (this._detectedSupport.pwd !== false) {
+            const [code, text] = await allow502(getLast(this._send("PWD")));
+            if (code != 502) {
+                return text && (RE_WD.exec(text) || [])[1];
             }
-            return text && (RE_WD.exec(text) || [])[1];
-        });*/
+        }
+        this._detectedSupport.pwd = false;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return this.cwd(".", true);
     }
 
     /**
@@ -1141,16 +1227,15 @@ export class FTP extends EventEmitter {
      * Changes the working directory to the parent of the current directory
      */
     public async cdup(): Promise<void> {
-        const [code] = await getLast(this._send("CDUP"));
-        if (code === 502) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return this.cwd("..", true) as Promise<any>;
-        }
-        /*return this._send("CDUP").then(([code]) => {
-            if (code === 502) {
-                return this.cwd("..", true) as Promise<any>;
+        if (this._detectedSupport.cdup !== false) {
+            const [code] = await allow502(getLast(this._send("CDUP")));
+            if (code != 502) {
+                return;
             }
-        });*/
+        }
+        this._detectedSupport.cdup = false;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return this.cwd("..", true) as Promise<any>;
     }
 
     /**
@@ -1163,7 +1248,6 @@ export class FTP extends EventEmitter {
             await getLast(this._send("MKD " + path));
             // If not thrown it is OK!.
             return;
-            // return this._send("MKD " + path).next() as Promise<any>;
         }
 
         const cwd = await this.pwd();
@@ -1265,6 +1349,8 @@ export class FTP extends EventEmitter {
                     await this.delete(subpath);
                 }
             }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return getLast(this._send("RMD " + path)) as Promise<any>;
         });
     }
 
@@ -1275,9 +1361,6 @@ export class FTP extends EventEmitter {
     public async system(): Promise<string> {
         const text = (await getLast(this._send("SYST")))[1];
         return (text && (RE_SYST.exec(text) || [])[1]) || "";
-        /*return this._send("SYST").then(([code, text]) => {
-            return (text && (RE_SYST.exec(text) || [])[1]) || "";
-        });*/
     }
 
     /**
@@ -1285,43 +1368,53 @@ export class FTP extends EventEmitter {
      * Retrieves the size of path
      */
     public async size(path: string): Promise<number> {
-        const [code, text] = await getLast(this._send("SIZE " + path));
+        let code = 502;
+        let text = undefined;
+        if (this._detectedSupport.size !== false) {
+            [code, text] = await allow502(getLast(this._send("SIZE " + path)));
+        }
         if (code === 502) {
-            // Note: this may cause a problem as list() is _appended_ to the queue
-            return this.list(path, true).then((list) => {
-                if (list.length === 1) {
-                    if (typeof list[0] === "string") {
-                        throw new Error("Cannot get size when listing is string");
-                    }
-                    return (list[0] as IListingElement).size;
-                } else {
-                    // path could have been a directory and we got a listing of its
-                    // contents, but here we echo the behavior of the real SIZE and
-                    // return 'File not found' for directories
-                    throw new Error("File not found");
+            this._detectedSupport.size = false;
+            // Note: this may cause a problem as fileInfo() might be _appended_ to the queue
+            return this.fileInfo(path).then((info) => {
+                if (!info) {
+                    throw new Error("Unable to get info for path " + JSON.stringify(path));
                 }
+                if (info.type == "d") {
+                    throw new Error("Can not get the size of a directory");
+                }
+                if (info.size != -1) {
+                    return info.size;
+                }
+                throw new Error("File not found");
             });
         }
         return text ? parseInt(text, 10) : -1;
     }
 
     /**
-     * Extended commands (RFC 3659)
-     * Retrieves the last modified date and time for path
+     * Retrieves the last modified date and time for `path`.
+     *
+     * Extensions to FTP (RFC 3659): https://datatracker.ietf.org/doc/html/rfc3659#section-3
      */
     public async lastMod(path: string): Promise<Date> {
-        const [code, text] = await getLast(this._send("MDTM " + path));
+        let code = 502;
+        let text = undefined;
+        if (this._detectedSupport.mdtm !== false) {
+            [code, text] = await allow502(getLast(this._send("MDTM " + path)));
+        }
         if (code === 502) {
-            return this.list(path, true).then((list: Array<string | IListingElement>) => {
-                if (list.length === 1) {
-                    if (typeof list[0] === "string") {
-                        throw new Error("Cannot lastmod when listing is string");
-                    }
-                    return (list[0] as IListingElement).date as Date;
+            this._detectedSupport.mdtm = false;
+            return this.fileInfo(path).then((info) => {
+                if (info && info.date) {
+                    return info.date;
                 } else {
-                    throw new Error("File not found");
+                    throw new Error("No modification time available for file " + JSON.stringify(path));
                 }
             });
+        }
+        if (code >= 400) {
+            throw Object.assign(new Error("Error for modification time (" + code + "): " + text), { code });
         }
         const val = regDate(text);
         if (!val) {
@@ -1334,12 +1427,40 @@ export class FTP extends EventEmitter {
     }
 
     /**
-     * Extended commands (RFC 3659)
-     * Sets the file byte offset for the next file transfer action (get/put) to byteOffset
+     * Sets the file byte offset for the next file transfer action (get/put) to `byteOffset`.
+     *
+     * Extensions to FTP (RFC 3659): https://datatracker.ietf.org/doc/html/rfc3659#section-3
      */
     public restart(byteOffset: number): Promise<void> {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return getLast(this._send("REST " + byteOffset)) as Promise<any>;
+    }
+
+    /**
+     * This method may be overridden on the instance to allow for better managed `PORT`/`EPRT` commands.
+     *
+     * For example, you may wish to bind only to a specific network interface for security reasons.
+     * In that case you may override this method to return the `bindIp` with a value of `127.0.0.1` instead of `0.0.0.0` to only allow incoming connections from localhost.
+     *
+     * Another reason may be to decide upon a port number and `await` some NAT rules to propagate before the remote server connects.
+     *
+     * This could also be useful if your external IP family does not match the family of your interface due to proxying or NAT rules.
+     * By default the zero `bindIp` will always be in the same IP family as the external IP set as `portAddress` in the `IOption` object.
+     *
+     * @param bindIp the ip for the interface
+     * @param portRange a suggested port range, usually provided from the configuration option
+     * @returns an async tuple containing the (possibly changed) `bindIp` and a `portRange`/`portNumber`; unless overridden the `bindIp` is `0.0.0.0` or `::`
+     */
+    public localPort(
+        bindIp: string,
+        portRange?: string
+    ): [string, string | number] | Promise<[string, string | number]> {
+        const addrFam = net.isIP(bindIp);
+        if (addrFam == 0) {
+            throw new Error("Invalid IP: " + bindIp);
+        }
+        bindIp = addrFam == 4 ? "0.0.0.0" : "::";
+        return [bindIp, portRange || "5000-8000"];
     }
 
     private async _pasv<T>(func: (con: net.Socket) => Promise<T | [Promise<void>, T]>): Promise<T> {
@@ -1347,9 +1468,31 @@ export class FTP extends EventEmitter {
         let ip: string;
         let port: number;
 
+        const computePasvCommand = () => {
+            const feat = this._feat || [];
+            if (
+                (feat.length == 0 ||
+                    feat.includes("EPSV") ||
+                    ![undefined, "IPv4"].includes(this._socket?.remoteFamily)) &&
+                this._detectedSupport.epsv !== false
+            ) {
+                return "EPSV";
+            } else if (
+                (feat.length == 0 || feat.includes("PASV")) &&
+                this._detectedSupport.pasv !== false &&
+                [undefined, "IPv4"].includes(this._socket?.remoteFamily)
+            ) {
+                return "PASV";
+            } else {
+                return "";
+            }
+        };
+
+        let pasvCommand = "";
+
         const pasvReentry = async ([
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            _,
+            code,
             text,
         ]: [
             number,
@@ -1360,7 +1503,7 @@ export class FTP extends EventEmitter {
         ]): Promise<net.Socket> => {
             this._curReq = undefined;
 
-            if (first) {
+            if (first && (!pasvCommand || pasvCommand == "PASV")) {
                 const m = text && RE_PASV.exec(text);
                 if (!m) {
                     throw new Error("Unable to parse PASV server response");
@@ -1373,6 +1516,15 @@ export class FTP extends EventEmitter {
                 ip += ".";
                 ip += m[4];
                 port = (parseInt(m[5], 10) << 8) | parseInt(m[6], 10);
+                first = false;
+            } else if (first) {
+                const m = text && RE_EPSV.exec(text);
+                if (!m) {
+                    throw new Error("Unable to parse EPSV server response");
+                }
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                ip = this._socket!.remoteAddress as string;
+                port = parseInt(m[2], 10);
                 first = false;
             }
             const sock = await this._pasvConnect(ip, port).catch((err2) => {
@@ -1411,8 +1563,10 @@ export class FTP extends EventEmitter {
         };
 
         const pasvOrPort = async (): Promise<[Promise<void>, T]> => {
-            if (!this._usePort || !this.options.portAddress) {
-                return getLast(this._send("PASV")).then(
+            const portAddress = this.options.portAddress;
+            pasvCommand = computePasvCommand();
+            if (pasvCommand || !portAddress) {
+                return getLast(this._send(pasvCommand || "PASV")).then(
                     async (send) => {
                         const sock = await pasvReentry(send);
                         const res = await func(sock);
@@ -1430,29 +1584,50 @@ export class FTP extends EventEmitter {
                         return [Promise.resolve(), res];
                     },
                     (err: Error & { code: number }) => {
-                        if (!this.options.portAddress) {
+                        if ((err.code == 500 || err.code == 502) && pasvCommand) {
+                            if (pasvCommand == "PASV") {
+                                this._detectedSupport.pasv = false;
+                            } else if (pasvCommand == "EPSV") {
+                                this._detectedSupport.epsv = false;
+                            }
+                        }
+                        if (!portAddress && !pasvCommand) {
                             throw err;
                         }
-                        this._usePort = true;
                         return pasvOrPort();
                     }
                 );
             } else {
-                const server = await createServer(this.options.portRange || "5000-8000", "0.0.0.0");
+                const addrFam0 = net.isIP(portAddress) as 0 | 4 | 6;
+                if (addrFam0 != 4 && addrFam0 != 6) {
+                    throw new Error("Invalid `portAddress`, must be IPv4 or IPv6: " + JSON.stringify(portAddress));
+                }
+                const [bindIp, portRange] = await this.localPort(portAddress, this.options.portRange);
+                const addrFam = net.isIP(bindIp) as 0 | 4 | 6;
+                if (addrFam != 4 && addrFam != 6) {
+                    throw new Error("Invalid `bindIp`, must be IPv4 or IPv6: " + JSON.stringify(bindIp));
+                }
+                if (
+                    addrFam != 4 &&
+                    (!this._feat || !this._feat.includes("EPRT") || this._detectedSupport.eprt === false)
+                ) {
+                    throw new Error(
+                        "Only IPv4 may be used for `bindIp` when connecting to servers without `EPRT` support"
+                    );
+                }
+                const server = await createServer(portRange || "5000-8000", bindIp);
                 const tempsock = reentryPort(server);
                 const address = server.address();
                 const tempport = typeof address !== "string" ? address.port : 0;
-                const portByte1 = tempport >> 8;
-                const portByte2 = tempport & 0xff;
-                const [code] = await getLast(
-                    this._send(
-                        "PORT " + this.options.portAddress.replace(/\./g, ",") + "," + portByte1 + "," + portByte2
-                    )
-                );
-                if (code >= 400) {
-                    server.close();
-                    throw new Error("Unable to make data connection: " + code);
+                let portCommand;
+                if (addrFam == 4) {
+                    const portByte1 = tempport >> 8;
+                    const portByte2 = tempport & 0xff;
+                    portCommand = "PORT " + portAddress.replace(/\./g, ",") + "," + portByte1 + "," + portByte2;
+                } else {
+                    portCommand = "EPRT |2|" + portAddress + "|" + tempport + "|";
                 }
+                await getLast(this._send(portCommand));
                 const sock = await tempsock;
                 const res = await func(sock).catch((err) => {
                     throw err;
@@ -1771,12 +1946,17 @@ export class FTP extends EventEmitter {
     }
 }
 
+export class ErrorWithCode extends Error {
+    public readonly code: number;
+    public constructor(code: number, text: string) {
+        super(text || "" + code);
+        this.code = code;
+    }
+}
+
 // Utility functions
-function makeError(code: number, text: string): Error {
-    const err = new Error(text);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (err as any).code = code;
-    return err;
+function makeError(code: number, text: string): ErrorWithCode {
+    return new ErrorWithCode(code, text);
 }
 
 const regDatePattern = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d+)(?:.\d+)?$/;
@@ -1794,6 +1974,17 @@ function regDate(text: string | undefined): IRegDate | undefined {
         second: temp[6],
         year: temp[1],
     };
+}
+
+async function allow502(itr: Promise<[number, string | undefined]>): Promise<[number, string | undefined]> {
+    try {
+        return await itr;
+    } catch (e) {
+        if (e instanceof ErrorWithCode && (e.code == 500 || e.code == 502)) {
+            return [502, e.message];
+        }
+        throw e;
+    }
 }
 
 async function getLast<T>(itr: AsyncIterator<T>): Promise<T> {
@@ -1815,7 +2006,7 @@ function createServer(portRange: string | number, ip?: string): Promise<net.Serv
             const s = net.createServer(/*{pauseOnConnect: true}*/);
             let [min, max] =
                 typeof portRange === "string"
-                    ? (portRange.split("-").map((v) => (v ? parseInt(v, 10) : 0)) as [number, number])
+                    ? (portRange.split("-", 2).map((v) => (v ? parseInt(v, 10) : 0)) as [number, number])
                     : [portRange, portRange];
             if (!min) {
                 min = 1;
@@ -1840,7 +2031,7 @@ function createServer(portRange: string | number, ip?: string): Promise<net.Serv
             });
             s.listen(min, ip);
         } else {
-            throw new Error("Invalid port_range");
+            rej(new Error("Invalid `portRange`"));
         }
     });
 }

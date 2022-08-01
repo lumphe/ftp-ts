@@ -28,6 +28,16 @@
                 "-p",
             ],
             "sourceMaps": true
+        },
+        {
+            "type": "node",
+            "request": "attach",
+            "name": "Attach bin",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js",
+                "${workspaceFolder}/dist/**/*.mjs"
+            ],
+            "sourceMaps": true
         }
     ]
 }

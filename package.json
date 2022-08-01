@@ -18,11 +18,12 @@
         "url": "http://github.com/lumphe/ftp-ts/issues"
     },
     "scripts": {
-        "test": "node test/test.js",
-        "bin": "node dist/bin.js",
+        "test": "node --enable-source-maps test/test.js",
+        "bin": "node --enable-source-maps dist/bin.mjs",
         "lint": "eslint . --ext .ts",
         "build": "npm run lint && npm run build:rollup",
-        "build:rollup": "rm -rf dist/* && rollup -c"
+        "build:rollup": "rm -rf dist/* && rollup -c",
+        "start": "node --enable-source-maps dist/bin.mjs"
     },
     "keywords": [
         "ftp",

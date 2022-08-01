@@ -135,6 +135,25 @@ Emitted when the connection has ended.
 
 Emitted when an error occurs. In case of protocol-level errors, the error contains a `code` property that references the related 3-digit FTP response code.
 
+### Override: ftp.localPort(bindIp[, portRange])
+
+* `bindIp`         [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) The IP to bind the `PORT` socket to.
+* `portRange`      [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) The range of ports to use when setting up `PORT` sockets.
+* Returns:         [&lt;Promise&lt;[string, string | number]&gt;&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise) The promise is resolved to the following object.
+    * 0            [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) The `bindIp` to actually bind to.
+    * 1            [&lt;string&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type) The `portRange` or `portNumber` to bind to.
+
+This method may be overridden on the instance to allow for better managed `PORT`/`EPRT` commands.
+
+For example, you may wish to bind only to a specific network interface for security reasons.
+In that case you may override this method to return the `bindIp` with a value of `127.0.0.1` instead of `0.0.0.0` to only allow incoming connections from localhost.
+
+Another reason may be to decide upon a port number and `await` some NAT rules to propagate before the remote server connects.
+
+This could also be useful if your external IP family does not match the family of your interface due to proxying or NAT rules.
+By default the zero `bindIp` will always be in the same IP family as the external IP set as `portAddress` in the `IOption` object.
+
+
 ### ftp.connect([options])
 
 * `options` [&lt;Object&gt;](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
